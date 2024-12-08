@@ -75,7 +75,14 @@ Adaptive Clonal Evolution in the Developing Mouse Brain
 
 - **Script**:  
   - `2_5_RegulAssociPathways_FigS4.R`: Analyzes regulon activity and explores associated pathways.
+ 
 
+
+## Related publication
+Find the original paper in [Adaptive Clonal Evolution Shapes Brain Development](), which is also available in [biorxiv]().
+
+## Contact
+If you have any question related to the data and the analysis, please contact Li-Chin Wang (li-chin.wang@dkfz-heidelberg.de), Dr.Pei-Chi Wei (p.wei@dkfz-heidelberg.de).
 
 
     
