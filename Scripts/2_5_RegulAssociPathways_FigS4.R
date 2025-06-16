@@ -46,7 +46,7 @@ N=max(n_exp_df$n_exp_genes)
 odd_table=data.frame(TFs=character(),Pathways=character(),odds_ratio=numeric(),
                      g=numeric(),p=numeric(),i=numeric(),p_val=numeric())
 
-db=msigdbr("Mus musculus",category="H")
+db=msigdbr(species="Mus musculus",db_species="MM",category="MH")
 
 for( i in 1:nrow(regulon_size)){
   tf=regulon_size$TFs[i]
@@ -167,7 +167,7 @@ data_all=do.call(rbind,pdata3_lists)
 
 # shared_geneslist-------------------
 
-kegg_db=msigdbr("Mus musculus",category = "H")
+kegg_db=msigdbr(species="Mus musculus",db_species="MM",category="MH")
 #kegg_db=kegg_db %>% filter(gs_subcat=="CP:KEGG" )
 ##unique(kegg_db$gs_name)
 pathways=split(kegg_db$gene_symbol,kegg_db$gs_name)
