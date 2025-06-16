@@ -45,7 +45,7 @@ run_gsea=function(x){
   wilcox_res=wilcoxauc(x,group_by = "Condition")
   
   print(head(wilcox_res))
-  m_db=msigdbr("Mus musculus",category="H")
+  m_db=msigdbr(species="Mus musculus",db_species="MM",category="MH")
   #print(head(m_db))
   fgsea_sets=m_db %>% split(x=.$gene_symbol,f=.$gs_name)
   
