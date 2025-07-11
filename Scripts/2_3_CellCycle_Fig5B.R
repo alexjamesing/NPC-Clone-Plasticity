@@ -144,6 +144,41 @@ ggsave(paste0(out,"/plots/S_Score_ecdf_withP.pdf"),width = 8,height = 12)
 write_csv(res_df,paste0(out,"files/KStest_res.csv"))
 
 
+# Summary
+# The script augments a single-cell RNA-seq Seurat object with cell-cycle scores, then asks whether the S-phase score distributions of several progenitor populations differ between control and complemented conditions—and whether this effect depends on a “Red = True/False” flag.
+# It:
+
+# Converts the canonical human S-phase and G2/M gene lists to mouse orthologues and runs CellCycleScoring.
+# Exports the updated metadata and inspects S- and G2/M-score quantiles.
+# For six progenitor‐like cell types, plots condition-stratified density histograms and ECDFs of the S-phase score, facetted by the Red flag.
+# Performs a Kolmogorov–Smirnov test (control vs complemented) within every Cell type × Red subgroup, applies no multiple-test correction, writes the results to CSV, and overlays the P-values on the ECDF plots.
+# The output is a pair of PDFs (density plot and ECDF with P-values) and a KStest_res.csv table of statistics.
+
+# Step-by-step details
+# Stage	Key code / actions	Purpose / effect
+# Load libraries	Plotting, Seurat, and utility packages (no analysis parallelism here).	
+# 0 Input	r data <- readRDS("~/data.rds")	Reads the Seurat object; out defines an output folder.
+# 1 Compute cell-cycle scores		
+# • Mouse orthologue conversion	```r mouse_human_genes <- read.csv(...HOM_MouseHumanSequence.rpt)	
+# m.s.genes <- convert_human_to_mouse(cc.genes$s.genes)		
+# m.g2m.genes <- convert_human_to_mouse(cc.genes.updated.2019$g2m.genes)```	Downloads the MGI homology table and maps canonical human S- and G2/M-phase genes to mouse symbols.	
+# • Scoring	data <- CellCycleScoring(data, s.features = m.s.genes, g2m.features = m.g2m.genes)	Adds S.Score, G2M.Score, Phase columns to data@meta.data. (The subsequent readRDS line suggests a pre-scored object may overwrite this step in the real pipeline.)
+# • Save metadata	write_csv(data@meta.data, "metadata_S_score.csv")	
+# 2 Inspect global score distribution	quantile(data$S.Score, prob = seq(0,1,0.05))	Prints 5 % increments—used later to choose plot limits or thresholds.
+# 3 Focus on specific progenitor populations		
+# • Target list	target_cells <- c("Glioblast","Neuroblast","Radial_glia",...)	
+# • Density plot	```r ggplot(..., aes(x = S.Score, fill = Condition)) +	
+#   geom_density(alpha = 0.5) + facet_grid(annotations ~ Red) ...``` | Visualises how the S-phase score differs by *Condition* within each *Cell type* × *Red* panel.  Saved as `S_Score_histo.pdf`. |
+# | 4 Kolmogorov–Smirnov tests |
+# | • Loop | For every target cell type, split its cells by Red status and run
+# ks.test(S.Score ~ Condition) (two-sample KS) comparing control vs complemented. |
+# | • Collect results | Builds res_df with D statistic, P-value, and labels; converts P-values to “/*//*/n.s.”. |
+# | 5 ECDF plot with P-values | r stat_ecdf() + geom_text(data = res_df, label = "P value: ...") | Plots cumulative distributions and annotates each facet with the KS P-value; saved as S_Score_ecdf_withP.pdf. |
+# | 6 Export stats | write_csv(res_df, "KStest_res.csv") | Provides a tidy table for downstream reporting. |
+
+# Outcome: A quick, visual + statistical check of whether S-phase activity in key progenitor cell types shifts between experimental conditions, separately for Red-positive and Red-negative cells.
+
+
 
 
 
