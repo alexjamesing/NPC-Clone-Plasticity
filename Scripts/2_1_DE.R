@@ -104,4 +104,32 @@ filter_significant=function(x){
 deseq2_res_df_sig=lapply(deseq2_res_df,filter_significant)
 
 
+# Summary
+# The script performs pseudobulk differential-expression analysis on a single-cell dataset that has already been annotated.
+# For every cell-type (“Annotation”) and every Red = True/False subset, it:
+
+# Aggregates counts per mouse × condition × cell-type × Red combination (pseudobulk samples).
+# Splits the resulting Seurat object into one list element per Red–Annotation group.
+# Runs DESeq2 (LRT with glmGamPoi fit) comparing complemented vs control within that group, using scran’s computeSumFactors for library-size normalisation.
+# Writes CSV files with full and FDR-filtered results and saves a list of all DESeq2 result tables.
+# Stage	Key code / actions	Purpose / effect
+# Load packages & set parallelism	register(MulticoreParam(30))	Loads Seurat, DESeq2, scran, etc.; enables 30-core parallelism for DESeq2.
+# 1 Prepare data	data <- readRDS("data_annotatios.rds")	Loads the annotated Seurat object containing single cells.
+# AggregateExpression(…, group.by = c("Mouse","Condition","annotations","Red"), slot = "counts") → Pb	Collapses raw counts into pseudobulk columns for every unique combination of mouse, experimental condition, cell-type annotation, and Red status.
+# Post-processing of Pb@meta.data	Parses the column names to extract Mouse, Condition, Annotation; builds a new categorical label groups = Red-Annotation.
+# Cell_list <- SplitObject(Pb, split.by = "groups")	Produces a list where each element contains only the pseudobulk samples of one Red/Annotation combination.
+# 2 DESeq2 per group	process_deseq2() (applied via lapply)	For each list element:
+# • Converts counts to a DESeqDataSet.
+# • Uses scran’s computeSumFactors for size-factor normalisation (type = "poscount" fallback).
+# • Sets condition factor with “control” as reference.
+# • Runs likelihood-ratio test (DESeq(test = "LRT", …, reduced = ~ 1, fitType = "glmGamPoi")).
+# • Returns the Wald contrast complemented vs control result table.
+# Results saved	• All result objects collected in deseq2_res.
+# • Each contrast written to CSV; filename prefix “Red_” or “N_Red_” depending on Red status.
+# Significance filter	deseq2_res_df_sig = lapply(deseq2_res_df, filter(padj <= 0.05))
+# 3 Save	saveRDS(deseq2_res, "~/Pseudobulk_deseq2_res_list.rds")	Keeps the full list of DESeq2 results for later use.
+# In essence, the script converts single-cell data into pseudobulk replicates, performs DESeq2-based differential expression between complemented and control conditions inside every Red/Annotation subgroup, and exports both the full and significant gene lists.
+
+
+
 
