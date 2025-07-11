@@ -375,4 +375,44 @@ for(i in 1:length(Cells)){
   ggsave(paste0(out,"plots/",cell,"_pathways_kspval_regulonactiv.pdf"),width = 12,height = 10)
 }
 
+# Summary
+# This pipeline connects SCENIC regulons (TF → target-gene sets) with Hallmark (MSigDB) pathways and asks:
+
+# Which regulons are statistically enriched for a given Hallmark pathway? → Fisher’s exact test / odds ratio.
+# Do those overlapping gene sets shift their expression scores between control and complemented cells, and does that shift depend on cell type? → per-cell module scores + Kolmogorov–Smirnov (KS) tests.
+# How do regulon activity changes relate to pathway overlap size? → dot-plot heatmaps ordered by hierarchical clustering.
+# The script therefore builds a bridge from TF activity (SCENIC) to biological pathways (Hallmark), highlights cell-type–specific rewiring under the complemented condition, and produces publication-quality plots and CSV tables.
+
+# Detailed workflow
+# Step	Code / files	Purpose
+# Load SCENIC & pathway datasets	CSV files: n_exp_genes_cells, Regulons.csv, regulon_size.csv, Hallmark gene sets via msigdbr	Provides: total expressed-gene universe N; each regulon’s target list; list of statistically active regulons in each cell type (df_TFs).
+# 1 Enrichment / odds-ratio screen	loop over every TF × Hallmark pair	g = regulon size, p = pathway size, I = overlap.
+# Builds 2×2 contingency table and runs Fisher’s exact test. Saves odd_table with odds ratio and p-value for every pair.
+# 2 Filter hits	odd_table %>% filter(p_val ≤ 0.01, odds_ratio ≥ 1, i > 2)	Keep only significant, positively enriched pairs with ≥ 3 shared genes.
+# 3 Add per-cell module scores	For every retained (TF, pathway) pair:
+# AddModuleScore() on the Seurat object using the exact overlapping gene set.	Produces one metadata column per pair (≈ 90) containing the averaged, scaled expression of the shared genes for each single cell.
+# 4 Reshape metadata	module_plot long table: cell‐type, condition, module-score, TF, pathway.	
+# 5 Prepare regulon activity meta-data	meta_infor – for each cell type, log-fold change of SCENIC AUC between conditions and whether the regulon is up in complemented or control.	
+# 6 Density plots & KS tests	For every retained (TF, pathway) inside each cell type, split cells by condition and run a two-sample KS test on module-score distributions. Collect results in ks_df.	
+# 7 Interactive PDF	For each pathway: density plots of module scores coloured by condition, facetted by cell_type × TF (overlap_size), only if KS P ≤ 0.01. Saved to Significant_modules_regulons2pathways.pdf.	
+# 8 Heatmap-style dot plot	Per cell type:
+# • −log10 (P) from KS test → dot colour.
+# • Dot shape encodes whether the regulon itself is up in complemented ( ▲ ) or in control ( ▼ ).
+# • Dot size = number of overlapping genes (i).
+# • Columns (TFs) split into control-up vs complemented-up, ordered by hierarchical clustering on KS matrix; rows (pathways) similarly clustered.
+# • Combined with a tile of regulon AUC difference (complemented – control).
+# Saved as one PDF per cell type, e.g. Radial_glia_pathways_kspval_regulonactiv.pdf.	
+# 9 Write final lookup tables	odd_table, regulons2path_df.csv (all overlaps), ks_df, etc.	Allows downstream reporting or interactive inspection.
+# Key outputs
+# File	Content
+# odd2hallmark_df.csv	Full odds-ratio & Fisher P for every TF–Hallmark pair.
+# regulons2path_df.csv	Gene-by-gene membership for significant overlaps.
+# metadata_ScoreColumns.rds (inside Seurat object)	Per-cell module scores for each TF–pathway overlap.
+# Significant_modules_regulons2pathways.pdf	Density plots of module scores with KS-test annotations.
+# <CellType>_pathways_kspval_regulonactiv.pdf	Dot-plot heatmap summarising pathway-regulon links and activity changes per cell type.
+# Interpretation
+
+# Together, these analyses pinpoint which transcription-factor regulons are functionally wired into Hallmark pathways and show how that wiring—and the regulon’s own activity—shifts between experimental conditions in specific neural or glial cell types.
+
+
 
