@@ -280,6 +280,52 @@ umap_cord$ori_cluster=sapply(str_split(umap_cord$high_res_clusters,pattern = "_"
 saveRDS(meta_cell,paste0("rds/meta_cell.rds"))
 
 
+# What this (third) script does — step by step
+# Stage	Key actions	Purpose / effect
+# Load packages	library(Seurat) … library(plyr)	Same Seurat + plotting + Harmony stack as before.
+# 0 Read input	r out <- "~/path_to_output/" # (path defined *after* read) data <- readRDS(paste0(out,"rds/sample_merge_integrtion.rds"))	Loads the Harmony-integrated, UMAP-embedded object produced by the previous script.
+# 1 Generate a family of clusterings	r data %>% FindNeighbors(reduction="harmony") %>% FindClusters(res=0.5) … FindClusters(res=4)	Computes an SNN graph on the Harmony space and writes six community detections at resolutions 0.5, 1, 1.5, 2, 3, 4, storing each as RNA_snn_res.* metadata columns. Saves the object to sample_clusters.rds.
+# • Quick diagnostics	Loop over the six RNA_snn_res.* columns:
+# – prints cell counts and a histogram
+# – draws a UMAP coloured by that resolution
+# – saves each plot to PDF	Lets the user eyeball which global resolution best balances cluster separation vs over-splitting.
+# Split by the highest resolution (4.0)	subset_clusters <- SplitObject(data, split.by="RNA_snn_res.4")	Creates a list in which each element is one “raw cluster” from resolution 4. This becomes the starting point for per-cluster refinement.
+# 2 Per-cluster sub-clustering (“meta-cells”)	Custom functions check_cell_number, do_Hclu, eval_metacell_size, etc.	Goal: for each raw cluster, find a higher internal resolution (1.0 – 10.0 in 0.4 steps) that yields subclusters (“meta-cells”) of ≈ 50–150 cells and minimal variability in gene counts.
+
+# Workflow per raw cluster:
+# 1. Iterate over seq(1,10,0.4). For each res:
+# – Re-cluster the cells.
+# – Aggregate expression per subcluster (AggregateExpression).
+# – Record QC metrics (nFeature_RNA) and cluster sizes.
+# 2. Assemble a dataframe of candidate resolutions vs:
+# – median nFeature_RNA & its SD
+# – min / max / mean cluster size
+# – distance from the ideal mean size 125 (custom score).
+# 3. Pick the best three by mean-size distance, then the single best by lowest SD.
+# 4. Store that chosen resolution for the raw cluster.
+# • Outputs of step 2	* Hclu.rds – list of per-cluster QC tables.
+# * data_size.rds – cluster-size statistics.
+# * meta_info.rds – final chosen resolution for every raw cluster.
+# * PDF plots of nFeature_RNA vs resolution.	Gives a reproducible record of how each raw cluster was sub-clustered.
+# Map every cell to its chosen meta-cell	Constructs add_meta, a dataframe containing for every barcode:
+# – raw_cluster (from res 4)
+# – chosen high-resolution label (hclu_res)
+# – concatenated meta_group = raw_cluster_hcluRes	Creates a single categorical label (meta_group) that identifies each fine-grained meta-cell across the whole dataset.
+# 3 Generate aggregated (“meta-cell”) object	r data <- readRDS(sample_clusters.rds) data <- AddMetaData(data, add_meta) meta_cell <- AggregateExpression(data, group.by="meta_group", return.seurat=TRUE)	Adds the meta_group column to the original object, then aggregates counts across all cells in each meta-cell (sums the raw counts and stores them in a new Seurat object meta_cell).
+# • Attach median UMAP coordinates**	Calculates the median (UMAP_1, UMAP_2) of constituent cells per meta-cell, builds a new DimReduc slot in meta_cell, and annotates both meta-cells and single cells with their parent raw_cluster (prefix before the underscore).	Allows immediate plotting of meta-cells in the same UMAP space as single cells.
+# Save final object	saveRDS(meta_cell, "rds/meta_cell.rds")	Stores the fully QC’d, resolution-tuned, aggregated meta-cell dataset for downstream analyses such as marker discovery, trajectory inference, or cross-modal integration.
+# In plain language
+
+# Creates six global clusterings (0.5 → 4.0 resolution) and lets the user eyeball them on UMAP.
+# Takes the finest global clustering (res 4) and, for each cluster individually, searches for an internal resolution that yields meta-cells of ~50–150 cells and stable gene counts.
+# Assigns each cell to its chosen meta-cell, aggregates counts, and computes a representative UMAP coordinate for every meta-cell.
+# Outputs:
+# sample_clusters.rds – object with global clusters
+# Hclu.rds, data_size.rds, meta_info.rds – audit trail of the resolution search
+# add_meta.rds – per-cell mapping to meta-cells
+# meta_cell.rds – final aggregated Seurat object ready for high-throughput analyses.
+
+
 
 
 
