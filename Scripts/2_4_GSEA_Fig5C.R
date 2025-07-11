@@ -134,3 +134,53 @@ ggplot(gsea_df%>% filter(groups %in% c("Radial_glia","Glioblast","Neuroblast","O
 ggsave(paste0(out,"plots/gsea_res_nc.pdf"),units = "in",width = 8,height = 6)
 
 write.csv(gsea_df,paste0(out,"files/gsea_df.csv"),row.names = F)
+
+# Summary
+# The script performs cell-type–resolved gene-set enrichment analysis (GSEA) on a single-cell Seurat object.
+# For every annotated cell type it:
+
+# Ranks genes by Wilcoxon AUC between control and complemented cells.
+# Runs fgsea on Hallmark gene sets (mouse) separately for the control-biased and complemented-biased ranks.
+# Saves a CSV of enrichment statistics and a bar-plot PDF for each cell type × condition.
+# After all cell types are processed, it reloads the “complemented” CSV files, concatenates them, and draws a facetted dot plot that summarises significant Hallmark pathways (padj ≤ 0.01) across selected progenitor / immune populations, with dot size = |NES| and shape = direction of change.
+# CSV tables and a final plot (gsea_res_nc.pdf) are written to ~/path_to_output/.
+
+# Step-by-step detail
+# Stage	Code / action	Purpose
+# Load packages & parallelism	register(MulticoreParam(50))	Enables fgsea multicore execution.
+# Read data & split by cell type	```r data <- readRDS("~/data.rds")	
+# data <- SplitObject(data, split.by = "annotations")```	Produces a list of Seurat objects, one per cell-type annotation.	
+# Define run_gsea()	Input = one of the split Seurat objects (single cell type).
+# Steps inside:
+# 1. Set identities to Condition (control vs complemented).
+# 2. Wilcoxon AUC (presto::wilcoxauc) → table of logFC per gene.
+# 3. Obtain Hallmark gene sets for mouse (msigdbr).
+# 4. For “control” ranks: sort genes by logFC, run fgseaMultilevel, write CSV, make bar plot of top NES pathways (padj ≤ 0.01).
+# 5. Repeat for “complemented” ranks.	
+# (Function not called here)	In this snippet run_gsea() isn’t executed, implying it was run previously and its CSV outputs already exist in ~/path_to_output/.	
+# Collect complemented results	```r f <- list.files(out, pattern = "^True*_")	
+# f <- f[grepl("complemented", f)]```	Loads every *_complemented_H.csv (Hallmark results for Red = True cells) into a list, filters to padj ≤ 0.01, binds rows into gsea_df.	
+# Re-format for plotting	Adds columns:
+# • shape = 24 (NES > 0) or 25 (NES < 0).
+# • groups = cell-type name.
+# • Cleans Hallmark names.
+# • Orders factors so facets & axes are readable.	
+# Dot-plot heatmap	```r ggplot(gsea_df %>%	
+#     filter(groups %in% c("Radial_glia","Glioblast","Neuroblast","OPC",
+#                          "Intermediate_progenitor","Microglia")),  
+#     aes(x = groups, y = pathway, fill = -log10(padj))) +  
+#     geom_point(aes(shape = shape, size = abs(NES))) …``` | Produces a grid where each dot encodes: <br>• *x* = cell type, *y* = Hallmark pathway. <br>• Fill colour = significance (−log10 padj). <br>• Dot size = |NES|, shape indicates up- (▲) or down-regulation (▼). |
+# | Save outputs | • Plot saved as gsea_res_nc.pdf. <br>• Full combined table saved as gsea_df.csv. |
+
+# File outputs
+
+# File	Contents
+# out/plots/<celltype>_control_H.pdf	Top 15 Hallmark pathways enriched in control-biased genes for that cell type.
+# out/plots/<celltype>_complemented_H.pdf	Same for complemented-biased genes.
+# out/files/<celltype>_<condition>_H.csv	Full fgsea statistics (NES, padj, leading-edge genes) for each cell type × condition.
+# out/plots/gsea_res_nc.pdf	Multi-cell-type dot plot of significant complemented enrichments for selected progenitor/immune groups.
+# out/files/gsea_df.csv	Combined table of significant fgsea results (padj ≤ 0.01).
+# This pipeline therefore translates single-cell differential-expression signals into pathway-level insights for every annotated population and highlights which biological programs are selectively altered in the complemented condition.
+
+
+
