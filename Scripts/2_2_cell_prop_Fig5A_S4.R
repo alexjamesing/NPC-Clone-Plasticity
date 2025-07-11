@@ -122,6 +122,38 @@ ggplot(data=prop_d,aes(x=Conditions,y=prop))+
 
 ggsave(paste0(out,"Cell_prop_GLMBio_res_red",".pdf"),width=12,height = 12)
 
+# Summary
+# The script quantifies how the proportion of each annotated cell type among “Red = TRUE” cells differs between the control and complemented conditions in a single-cell dataset.
+# It:
 
+# Loads the Seurat object and extracts its metadata.
+# Aggregates counts per mouse × condition × cell type (for Red = TRUE cells only) and converts those counts into per-mouse proportions.
+# Fits a binomial GLM for every cell type, testing whether the fraction of that cell type (vs all other cell types) changes between conditions while treating each mouse as a biological replicate.
+# Adjusts p-values (FDR), saves the full statistics, and
+# Plots box-and-dot plots of the cell-type proportions with significance stars, facetted by cell type and coloured by mouse.
+# The result is a PDF (“Cell_prop_GLMBio_res_red.pdf”) and a CSV of GLM statistics that highlight which cell types are significantly expanded or depleted in the complemented condition.
+
+# Stage	Key code / actions	Detailed purpose
+# Load data & export metadata	```r data <- readRDS("~/data.rds")	
+# write_csv(data@meta.data, "~/metadata.csv")```	Reads the annotated Seurat object; saves its metadata table for record-keeping.	
+# Colour palette (unused later)	annot_color <- …	Prepares a named colour vector for annotation categories.
+# 1 Aggregate counts	r red_d <- mdata %>% filter(Red=="TRUE")	Focus only on cells flagged Red == "TRUE".
+# ```r t <- red_d %>% group_by(Condition, Mouse, annotations) %>% summarise(counts=n())	
+# prop_d <- t %>% group_by(Condition, Mouse) %>% add_count(wt = counts)```	Counts cells per Mouse/Condition/Cell-Type; computes Total_cell_counts_per_mouse.	
+# prop_d$prop = cell_counts / Total_cell_counts_per_mouse	Converts counts to proportions.
+# 2 Per-cell-type GLM	Custom function GLM_binomial()	For one cell type:
+# • Builds a 2×N contingency table (that cell type vs all others) across replicates.
+# • Fits glm(freq ~ condition, family = binomial).
+# • Uses likelihood-ratio ANOVA to get a p-value.
+# • Returns log‐odds coefficient and p-value.
+# ```r Cell_groups <- sort(unique(red_d$annotations))	
+# glm_res <- lapply(Cell_groups, GLM_binomial, …)```	Runs the GLM for every annotation, binds results, adjusts FDR (padj_aov).	
+# write_csv(glm_res, "~/glm_res_red_df.csv")	Saves full GLM statistics.
+# 3 Prepare significance labels	Converts FDR values to “/*//*/n.s.” for later plotting; manually tweaks y-axis label positions for three cell types.	
+# 4 Box-and-dot plot	ggplot(prop_d, aes(x = Conditions, y = prop)) + …	• Boxplots of per-mouse proportions (one dot per mouse, coloured).
+# • Facets one panel per cell type (free y-scales).
+# • Adds significance stars from GLM.
+# • Saves to Cell_prop_GLMBio_res_red.pdf (12 × 12 in).
+# End product: a visual and statistical comparison of cell-type composition between experimental conditions, accounting for mouse-level replication via binomial generalised linear models.
 
 
