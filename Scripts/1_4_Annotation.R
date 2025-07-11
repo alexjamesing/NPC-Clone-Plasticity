@@ -196,3 +196,28 @@ Idents(data)=as.factor(data$annotations)
 saveRDS(data,paste0(out,"rds/data_annotatios.rds"))
 
 
+# Summary (one-liner)
+# This script takes an aggregated “meta-cell” Seurat object, transfers brain-region and subclass labels from a La Manno et al. reference atlas, defines marker-gene panels, hand-assigns each meta-cell to a broad cell-type class, and saves the fully annotated object for downstream analysis.
+
+# Stage	Key code / actions	Detailed purpose
+# Load libraries	library(Seurat) … library(circlize)	Brings in Seurat plus plotting and utility packages (some unused here).
+# 1 Read and pre-process query	```r ref <- readRDS("~/rds/ref_data_rd.rds") # La Manno reference	
+# query <- readRDS("rds/meta_cell.rds") # meta-cells		
+# query <- query %>% NormalizeData() %>% FindVariableFeatures(3000) %>%		
+#      ScaleData(vars.to.regress = c("nFeature_RNA","percent.mt")) %>%  
+#      RunPCA(50)``` | Computes log-normalisation, 3 000 HVGs, scaling (regressing out library size + mito%), and 50 PCs on the meta-cells. |
+# | 2 Label transfer – brain region | r hv <- intersect(VariableFeatures(ref),rownames(query)) anchors <- FindTransferAnchors(ref, query, features = hv, reduction = "cca") predictions_region <- TransferData(anchors, ref$Region) | CCA finds anchors between reference and query; transfers “Region” labels (Forebrain, Midbrain, etc.). Results written to CSV and added to query as Linnarsson_region_transfer, with prediction scores. |
+# | 3 Label transfer – subclass | predictions_subclass <- TransferData(…, ref$Subclass) | Transfers finer neuronal subclasses; saved to CSV for inspection, but not stored in the object. |
+# | 4 Define marker-gene panels | Large blocks that create named vectors for vascular cells, radial-glia family, neuronal sub-classes, cortical layers, regional markers, etc. A tidy tibble markers_df consolidates them. | Provides gene lists for manual FeaturePlots (code commented) and later annotation decisions. |
+# | 5 Manual cluster-ID → cell-type mapping | Hard-coded vectors list the cluster IDs (from earlier resolution 4 clustering) that correspond to each major lineage (Glutamatergic, GABAergic, Pericyte, Radial glia, etc.). | Creates a new annotations column by case_when, mapping each cluster ID to its chosen class. |
+# | 6 Set identities & save | r Idents(query) <- query$annotations saveRDS(query, paste0(out,"rds/data_annotatios.rds")) | Final object now carries annotations as the active identity—ready for differential expression, plotting, etc. |
+
+# Notes / caveats
+
+# The script writes several intermediate CSV/RDS files (Predictions_class.csv, query_Linnarsson_region.rds) so results can be inspected in a spreadsheet or re-loaded.
+# The block that builds markers_df is preparatory; the gene lists are never actively visualised here (FeaturePlot line is commented).
+# Undertimined in case_when is misspelled and will cause an error; likewise the final T ~ "Others" should be .default = "Others".
+# Some loaded libraries (e.g., ComplexHeatmap, circlize, treedataverse) are not used in this script, suggesting copy-paste from a broader pipeline.
+# Overall, the script adds automated atlas labels and curated, marker-based cell-type calls, returning a Seurat object (data_annotatios.rds) that is ready for downstream biological interpretation.
+
+
