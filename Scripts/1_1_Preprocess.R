@@ -99,4 +99,41 @@ datam=merge(norm_list[[1]],y=c(unlist(norm_list)[2:24]),add.cell.ids = c(names(n
 
 saveRDS(datam,paste0(out,"rds/samples_merge.rds"))
 
+# What the script does -- step by step
+# Step	Code block	Purpose
+# Load packages	library(Seurat) … library(plyr)	Brings in Seurat (single-cell RNA-seq), plotting and tidy-verse utilities, Harmony for batch correction (though not used later).
+# Set I/O paths	out="~/path_to_output/"
+# files=list.files("~/path_to_cellranger_outputs")	Defines where to find Cell Ranger “filtered_feature_bc_matrix” folders (files) and where to write results (out).
+# Read doublet calls	doub_df = read_csv("~/0_Doublet_prediction/Doublets_corrected_scores.csv")	Loads an external table with Scrublet scores and empirically set X-pos cut-offs.
+# Loop over each Cell Ranger run	for (i in 1:length(files)) { … }	• Builds data_path for sample i.
+# • Reads the count matrix with Read10X.
+# • Creates a Seurat object (CreateSeuratObject).
+# • Looks up that sample in doub_df, labels each barcode as “singlet” or “doublet”, and stores the label in the object’s metadata (AddMetaData).
+# • Removes doublets by splitting on the new metadata column and keeping only the “singlet” subset.
+# • Adds the singlet object to seurat_sample_list.
+# Add basic QC metrics	raw_process <- function(x) { … }
+# seurat_sample_list = lapply(seurat_sample_list, raw_process)	For every sample, calculates percentage of reads that are: mitochondrial genes (^mt-), ribosomal genes (^Rp-), transgene markers (mCherry, DTA, Cre). Each percentage is stored in @meta.data.
+# Per-sample QC filtering	qc_process <- function(x) { … }
+# lapply(seurat_sample_list, qc_process)	• Prints and writes a CSV of decile (0–100 %) distributions for nCount, nFeature, and mitochondrial percentage.
+# • Filters cells: keep only those with > 500 detected genes and < 5 % mitochondrial content.
+# Returns the filtered object.
+# Normalisation + variable-feature selection	norma_process <- function(x) { … }
+# norm_list = lapply(seurat_sample_list, norma_process)	• NormalizeData (log-normalisation).
+# • FindVariableFeatures (top 3 000 genes).
+# • Plots the variable-feature scatter, highlights the top 30 features, saves as PDF under out/plots/.
+# Merge all samples	datam = merge(norm_list[[1]], y = c(unlist(norm_list)[2:24]), …)	Combines the (up to 24) individual, pre-filtered Seurat objects into one multi-sample object, adding sample-specific prefixes to cell barcodes.
+# Save result	saveRDS(datam, paste0(out,"rds/samples_merge.rds"))	Writes the merged, QC-filtered, normalised dataset to disk for downstream analysis.
+# In plain language
+
+# Read every Cell Ranger folder, build a Seurat object, and remove doublets using an external Scrublet score sheet.
+# Compute standard QC metrics (mitochondrial, ribosomal, transgene reads), write a decile report, and discard low-quality cells.
+# Log-normalise each sample and pick 3 000 highly variable genes; save variable-feature plots.
+# Merge all cleaned samples into a single Seurat object and store it as samples_merge.rds.
+# That RDS can be loaded later for scaling, dimensional reduction, Harmony/CCA integration, clustering, etc.
+
+
+
+
+
+
 
