@@ -24,15 +24,22 @@ library(scran)
 library(glmGamPoi)
 library(presto)
 
+base_folder <- "/omics/odcf/analysis/OE0574_projects/brainbreaks/single_cell_BB_E17-5_Alex/result_all_102025/R_files/Results"
+annotation_dir <- file.path(base_folder, "new_annotation", "rds")
+annotated_cells_path <- file.path(annotation_dir, "single_cell_annotations.rds")
+if (!file.exists(annotated_cells_path)) {
+  stop("Annotated single-cell object not found at: ", annotated_cells_path)
+}
+
 register(MulticoreParam(30))
 
 
-out="~/path_to_output/"
+out <- file.path(base_folder, "new_annotation")
 
 
 # 1. prepare data ---------------------------
 
-data=readRDS("~/data_annotatios.rds")
+data <- readRDS(annotated_cells_path)
 
 Pb=AggregateExpression(data,return.seurat = TRUE,assays="RNA",slot="counts",group.by = c("Mouse","Condition","annotations","Red"))
 
@@ -114,7 +121,7 @@ deseq2_res_df_sig=lapply(deseq2_res_df,filter_significant)
 # Writes CSV files with full and FDR-filtered results and saves a list of all DESeq2 result tables.
 # Stage	Key code / actions	Purpose / effect
 # Load packages & set parallelism	register(MulticoreParam(30))	Loads Seurat, DESeq2, scran, etc.; enables 30-core parallelism for DESeq2.
-# 1 Prepare data	data <- readRDS("data_annotatios.rds")	Loads the annotated Seurat object containing single cells.
+# 1 Prepare data	data <- readRDS(".../new_annotation/rds/single_cell_annotations.rds")	Loads the annotated Seurat object containing single cells.
 # AggregateExpression(…, group.by = c("Mouse","Condition","annotations","Red"), slot = "counts") → Pb	Collapses raw counts into pseudobulk columns for every unique combination of mouse, experimental condition, cell-type annotation, and Red status.
 # Post-processing of Pb@meta.data	Parses the column names to extract Mouse, Condition, Annotation; builds a new categorical label groups = Red-Annotation.
 # Cell_list <- SplitObject(Pb, split.by = "groups")	Produces a list where each element contains only the pseudobulk samples of one Red/Annotation combination.
@@ -129,7 +136,5 @@ deseq2_res_df_sig=lapply(deseq2_res_df,filter_significant)
 # Significance filter	deseq2_res_df_sig = lapply(deseq2_res_df, filter(padj <= 0.05))
 # 3 Save	saveRDS(deseq2_res, "~/Pseudobulk_deseq2_res_list.rds")	Keeps the full list of DESeq2 results for later use.
 # In essence, the script converts single-cell data into pseudobulk replicates, performs DESeq2-based differential expression between complemented and control conditions inside every Red/Annotation subgroup, and exports both the full and significant gene lists.
-
-
 
 

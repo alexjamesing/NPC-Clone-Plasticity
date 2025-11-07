@@ -19,13 +19,19 @@ library(ggalluvial)
 library(ggfittext)
 library(scales)
 
+base_folder <- "/omics/odcf/analysis/OE0574_projects/brainbreaks/single_cell_BB_E17-5_Alex/result_all_102025/R_files/Results"
+annotation_dir <- file.path(base_folder, "new_annotation", "rds")
+annotated_cells_path <- file.path(annotation_dir, "single_cell_annotations.rds")
+if (!file.exists(annotated_cells_path)) {
+  stop("Annotated single-cell object not found at: ", annotated_cells_path)
+}
+out <- file.path(base_folder, "new_annotation")
 
-out="~/path_to_output/"
 # 0.input data --------------------
 
-data=readRDS("~/data.rds")
+data <- readRDS(annotated_cells_path)
 
-write_csv(data@meta.data,"~/metadata.csv")
+write_csv(data@meta.data, file.path(out, "metadata_cell_props.csv"))
 
 mdata=data@meta.data
 
@@ -72,7 +78,7 @@ glm_res=do.call(rbind,lapply(Cell_groups,
 
 
 glm_res$padj_aov <- p.adjust(glm_res$pval_aov)
-write_csv(glm_res,"~/glm_res_red_df.csv")
+write_csv(glm_res, file.path(out, "glm_res_red_df.csv"))
 
 
 ## plot boxplot -----
@@ -120,7 +126,7 @@ ggplot(data=prop_d,aes(x=Conditions,y=prop))+
   theme_classic()+
   stat_pvalue_manual(stat_text,label="p_sig",y.position = "y.position")
 
-ggsave(paste0(out,"Cell_prop_GLMBio_res_red",".pdf"),width=12,height = 12)
+ggsave(file.path(out, "Cell_prop_GLMBio_res_red.pdf"), width = 12, height = 12)
 
 # Summary
 # The script quantifies how the proportion of each annotated cell type among “Red = TRUE” cells differs between the control and complemented conditions in a single-cell dataset.
@@ -134,7 +140,7 @@ ggsave(paste0(out,"Cell_prop_GLMBio_res_red",".pdf"),width=12,height = 12)
 # The result is a PDF (“Cell_prop_GLMBio_res_red.pdf”) and a CSV of GLM statistics that highlight which cell types are significantly expanded or depleted in the complemented condition.
 
 # Stage	Key code / actions	Detailed purpose
-# Load data & export metadata	```r data <- readRDS("~/data.rds")	
+# Load data & export metadata	```r data <- readRDS(".../new_annotation/rds/single_cell_annotations.rds")	
 # write_csv(data@meta.data, "~/metadata.csv")```	Reads the annotated Seurat object; saves its metadata table for record-keeping.	
 # Colour palette (unused later)	annot_color <- …	Prepares a named colour vector for annotation categories.
 # 1 Aggregate counts	r red_d <- mdata %>% filter(Red=="TRUE")	Focus only on cells flagged Red == "TRUE".
@@ -155,5 +161,3 @@ ggsave(paste0(out,"Cell_prop_GLMBio_res_red",".pdf"),width=12,height = 12)
 # • Adds significance stars from GLM.
 # • Saves to Cell_prop_GLMBio_res_red.pdf (12 × 12 in).
 # End product: a visual and statistical comparison of cell-type composition between experimental conditions, accounting for mouse-level replication via binomial generalised linear models.
-
-

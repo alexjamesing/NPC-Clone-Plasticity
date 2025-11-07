@@ -20,13 +20,17 @@ library(ggfittext)
 library(scales)
 
 
-
-
+base_folder <- "/omics/odcf/analysis/OE0574_projects/brainbreaks/single_cell_BB_E17-5_Alex/result_all_102025/R_files/Results"
+annotation_dir <- file.path(base_folder, "new_annotation", "rds")
+annotated_cells_path <- file.path(annotation_dir, "single_cell_annotations.rds")
+if (!file.exists(annotated_cells_path)) {
+  stop("Annotated single-cell object not found at: ", annotated_cells_path)
+}
+out <- file.path(base_folder, "new_annotation")
 
 # 0.input data --------------------
 
-out="~/path_to_output/"
-data=readRDS("~/data.rds")
+data <- readRDS(annotated_cells_path)
 
 # 1. cellcycle scores -------------------------
 
@@ -58,8 +62,8 @@ m.s.genes <- convert_human_to_mouse(s.genes)
 m.g2m.genes <- convert_human_to_mouse(g2m.genes)
 # Print the first 6 genes found to the screen
 data=CellCycleScoring(data, s.features = m.s.genes, g2m.features = m.g2m.genes, set.ident = FALSE)
-data=readRDS(paste0(out,"rds/data_cellycle.rds"))
-write_csv(data@meta.data,paste0(out,"files/metadata_S_score.csv"))
+data <- readRDS(file.path(out, "rds", "data_cellycle.rds"))
+write_csv(data@meta.data, file.path(out, "files", "metadata_S_score.csv"))
 
 # 2. Check distribution --------------------------------
 
@@ -101,7 +105,7 @@ ggplot(data@meta.data[which(data$annotations %in% target_cells),], aes(x =S.Scor
   theme_classic()+
   ylab("S Scores")
 
-ggsave(paste0(out,"/plots/S_Score_histo.pdf"),width = 8,height = 16)
+ggsave(file.path(out, "plots", "S_Score_histo.pdf"), width = 8, height = 16)
 
 
 
@@ -139,9 +143,9 @@ p=ggplot(df,aes(x=S.Score,color=Condition))+
   theme_classic()
 p+ geom_text(data=res_df,mapping=aes(x=X_pos,y=Y_pos,label=paste0("P value: ",round(p_value,2))),color="black")
 
-ggsave(paste0(out,"/plots/S_Score_ecdf_withP.pdf"),width = 8,height = 12)
+ggsave(file.path(out, "plots", "S_Score_ecdf_withP.pdf"), width = 8, height = 12)
 
-write_csv(res_df,paste0(out,"files/KStest_res.csv"))
+write_csv(res_df, file.path(out, "files", "KStest_res.csv"))
 
 
 # Summary
@@ -157,7 +161,7 @@ write_csv(res_df,paste0(out,"files/KStest_res.csv"))
 # Step-by-step details
 # Stage	Key code / actions	Purpose / effect
 # Load libraries	Plotting, Seurat, and utility packages (no analysis parallelism here).	
-# 0 Input	r data <- readRDS("~/data.rds")	Reads the Seurat object; out defines an output folder.
+# 0 Input	r data <- readRDS(".../new_annotation/rds/single_cell_annotations.rds")	Reads the Seurat object; out defines an output folder.
 # 1 Compute cell-cycle scores		
 # • Mouse orthologue conversion	```r mouse_human_genes <- read.csv(...HOM_MouseHumanSequence.rpt)	
 # m.s.genes <- convert_human_to_mouse(cc.genes$s.genes)		
@@ -177,8 +181,6 @@ write_csv(res_df,paste0(out,"files/KStest_res.csv"))
 # | 6 Export stats | write_csv(res_df, "KStest_res.csv") | Provides a tidy table for downstream reporting. |
 
 # Outcome: A quick, visual + statistical check of whether S-phase activity in key progenitor cell types shifts between experimental conditions, separately for Red-positive and Red-negative cells.
-
-
 
 
 

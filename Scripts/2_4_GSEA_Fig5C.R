@@ -26,8 +26,18 @@ library(qs)
 register(MulticoreParam(50))
 
 
-out="~/path_to_output/"
-data=readRDS("~/data.rds")
+base_folder <- "/omics/odcf/analysis/OE0574_projects/brainbreaks/single_cell_BB_E17-5_Alex/result_all_102025/R_files/Results"
+annotation_dir <- file.path(base_folder, "new_annotation", "rds")
+annotated_cells_path <- file.path(annotation_dir, "single_cell_annotations.rds")
+if (!file.exists(annotated_cells_path)) {
+  stop("Annotated single-cell object not found at: ", annotated_cells_path)
+}
+out <- file.path(base_folder, "new_annotation")
+gsea_out <- file.path(out, "4_1_Pathway")
+dir.create(file.path(gsea_out, "files"), recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(gsea_out, "plots"), recursive = TRUE, showWarnings = FALSE)
+
+data <- readRDS(annotated_cells_path)
 data=SplitObject(data,split.by = "annotations")
 
 
@@ -38,7 +48,7 @@ data=SplitObject(data,split.by = "annotations")
 
 
 run_gsea=function(x){
-  out_plot="/home/l538g/workingf/brainbreaks/single_cell_BB_E17-5/Giulia_data_analysis/result_all_05082024/R_files/Results/4_1_Pathway/"
+  out_plot=gsea_out
   n=x$split_groups[1]
   print(n)
   Idents(x)=as.factor(x$Condition)
@@ -54,7 +64,7 @@ run_gsea=function(x){
   wilcox_res_genes=control_sets %>% arrange(desc(logFC))%>% dplyr::select(feature,logFC)
   ranks=deframe(wilcox_res_genes)
   fgsea_res=fgseaMultilevel(fgsea_sets,stats=ranks,eps=0)
-  write_csv(fgsea_res,paste0(out_plot,"files/",n,"_control_H",".csv"))
+  write_csv(fgsea_res,file.path(out_plot,"files",paste0(n,"_control_H.csv")))
   quan_90=quantile(fgsea_res$NES,c(0.1,0.2,0.5,0.9,0.95,1),na.rm = T)["90%"]
   quan_10=quantile(fgsea_res$NES,c(0.1,0.2,0.5,0.9,0.95,1),na.rm = T)["10%"]
   res=fgsea_res %>%arrange(desc(NES)) %>%arrange(padj)%>%head(50)
@@ -63,7 +73,7 @@ run_gsea=function(x){
     coord_flip()+
     theme_classic()+
     xlab("Pathways")
-  ggsave(paste0(out_plot,"plots/",n,"_control_H",".pdf"),width = 16,height = 12)
+  ggsave(file.path(out_plot,"plots",paste0(n,"_control_H.pdf")),width = 16,height = 12)
   
   # Complemented
   
@@ -71,7 +81,7 @@ run_gsea=function(x){
   wilcox_res_genes=complemented_sets %>% arrange(desc(logFC))%>% dplyr::select(feature,logFC)
   ranks=deframe(wilcox_res_genes)
   fgsea_res=fgseaMultilevel(fgsea_sets,stats=ranks,eps=0)
-  write_csv(fgsea_res,paste0(out_plot,"files/",n,"_complemented_H",".csv"))
+  write_csv(fgsea_res,file.path(out_plot,"files",paste0(n,"_complemented_H.csv")))
   quan_90=quantile(fgsea_res$NES,c(0.1,0.2,0.5,0.9,0.95,1),na.rm = T)["90%"]
   quan_10=quantile(fgsea_res$NES,c(0.1,0.2,0.5,0.9,0.95,1),na.rm = T)["10%"]
   res=fgsea_res %>%arrange(desc(NES)) %>%arrange(padj)%>%head(50)
@@ -80,7 +90,7 @@ run_gsea=function(x){
     coord_flip()+
     theme_classic()+
     xlab("Pathways")
-  ggsave(paste0(out_plot,"plots/",n,"_complemented_H",".pdf"),width = 16,height = 12)
+  ggsave(file.path(out_plot,"plots",paste0(n,"_complemented_H.pdf")),width = 16,height = 12)
 }
 
 
@@ -90,8 +100,8 @@ run_gsea=function(x){
 
 # 5. Plot -----------------------------
 ### 1. gsea res -----------------------------------------------
-path=out
-f=list.files(out,pattern = "^True*_")
+path=file.path(gsea_out,"files")
+f=list.files(path,pattern = "^True")
 f=f[which(grepl("complemented",f))]
 
 gsea_res=list()
@@ -100,7 +110,7 @@ for(i in 1:length(f)){
   print(f[i])
   n=gsub("True_","",f[i])
   n=gsub("_H.csv","",n)
-  t=read_csv(paste0(path,f[i]),trim_ws = T) %>% mutate(cells=n) %>% filter(padj <=0.01)
+  t=read_csv(file.path(path,f[i]),trim_ws = T) %>% mutate(cells=n) %>% filter(padj <=0.01)
   if(nrow(t) >0){
     gsea_res[[i]]=t
     names(gsea_res)[i]=gsub(".csv","",f[i])
@@ -131,9 +141,9 @@ ggplot(gsea_df%>% filter(groups %in% c("Radial_glia","Glioblast","Neuroblast","O
   theme(axis.text.x=element_text(angle=90))+
   labs(size="NES")+ylab("Pathways")
 
-ggsave(paste0(out,"plots/gsea_res_nc.pdf"),units = "in",width = 8,height = 6)
+ggsave(file.path(gsea_out,"plots","gsea_res_nc.pdf"),units = "in",width = 8,height = 6)
 
-write.csv(gsea_df,paste0(out,"files/gsea_df.csv"),row.names = F)
+write.csv(gsea_df,file.path(gsea_out,"files","gsea_df.csv"),row.names = F)
 
 # Summary
 # The script performs cell-type–resolved gene-set enrichment analysis (GSEA) on a single-cell Seurat object.
@@ -148,7 +158,7 @@ write.csv(gsea_df,paste0(out,"files/gsea_df.csv"),row.names = F)
 # Step-by-step detail
 # Stage	Code / action	Purpose
 # Load packages & parallelism	register(MulticoreParam(50))	Enables fgsea multicore execution.
-# Read data & split by cell type	```r data <- readRDS("~/data.rds")	
+# Read data & split by cell type	```r data <- readRDS(".../new_annotation/rds/single_cell_annotations.rds")	
 # data <- SplitObject(data, split.by = "annotations")```	Produces a list of Seurat objects, one per cell-type annotation.	
 # Define run_gsea()	Input = one of the split Seurat objects (single cell type).
 # Steps inside:
@@ -181,6 +191,3 @@ write.csv(gsea_df,paste0(out,"files/gsea_df.csv"),row.names = F)
 # out/plots/gsea_res_nc.pdf	Multi-cell-type dot plot of significant complemented enrichments for selected progenitor/immune groups.
 # out/files/gsea_df.csv	Combined table of significant fgsea results (padj ≤ 0.01).
 # This pipeline therefore translates single-cell differential-expression signals into pathway-level insights for every annotated population and highlights which biological programs are selectively altered in the complemented condition.
-
-
-
